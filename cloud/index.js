@@ -11,7 +11,8 @@ const actionWords = {
     "created": "创建",
     "requested": "请求",
     "completed": "完成",
-    "synchronize": "同步更新"
+    "synchronize": "同步更新",
+    "reordered": "排序"
 };
 
 const querystring = require('querystring');
@@ -93,6 +94,28 @@ async function handleIssue(body, robotid) {
     await robot.sendMdMsg(mdMsg);
     return;
 }
+/**
+ * 处理projects_v2_item 事件
+ * @param ctx koa context
+ * @param robotid 机器人id
+ */
+async function handleProjectsV2Item(body, robotid) {
+    const robot = new ChatRobot(
+        robotid
+    );
+    const { action, sender, organization, projects_v2_item } = body;
+    const { creator, content_type } = projects_v2_item;
+    if (action !== "opened") {
+        return `除非有人开启新的issue，否则无需通知机器人`;
+    }
+    const mdMsg = `有人在 [${organization.login}](${organization.repos_url}) ${actionWords[action]}了一个issue
+                    类型：${content_type}
+                    发起人：[${sender.login}](${sender.html_url})
+                    project card creator：[${creator.login}](${creator.html_url})
+                    `;
+    await robot.sendMdMsg(mdMsg);
+    return;
+}
 
 /**
  * 对于未处理的事件，统一走这里
@@ -124,6 +147,8 @@ exports.main_handler = async (event, context, callback) => {
             return await handlePing(payload, robotid);
         case "issues":
             return await handleIssue(payload, robotid);
+        case "projects_v2_item":
+            return await handleProjectsV2Item(payload, robotid);
         default:
             return handleDefault(payload, gitEvent);
     }
